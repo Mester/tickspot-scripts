@@ -2,7 +2,7 @@ from datetime import timedelta
 import requests
 import click
 
-API_URL = 'https://www.tickspot.com/79559/api/v2/'
+API_URL = 'https://www.tickspot.com/79559/api/v2'
 
 
 @click.group()
@@ -20,14 +20,14 @@ def cli(ctx, api_token, email, user_agent):
 
 
 @cli.command()
-@click.option('--task_id', type=click.INT, required=False, help='Id for the task')
-@click.option('--from_date', type=click.DateTime(['%Y-%m-%d']), required=False, help='Starting day')
-@click.option('--to_date', type=click.DateTime(['%Y-%m-%d']), required=False, help='Last day (including)')
+@click.option('--task_id', type=click.INT, required=True, help='Id for the task')
+@click.option('--from_date', type=click.DateTime(['%Y-%m-%d']), required=True, help='Starting day')
+@click.option('--to_date', type=click.DateTime(['%Y-%m-%d']), required=True, help='Last day (including)')
 @click.option('--hours', default=8, help='Amount of hours to fill in')
 @click.option('--notes', default="", help='Optional note to fill in')
 @click.pass_context
 def create_entries(ctx, task_id, from_date, to_date, hours, notes):
-    url = API_URL + "entries.json"
+    url = API_URL + "/entries.json"
 
     for single_date in daterange(from_date, to_date):
         data = {
@@ -36,10 +36,28 @@ def create_entries(ctx, task_id, from_date, to_date, hours, notes):
             "notes": notes,
             "task_id": task_id,
         }
-        # r = requests.post(url, json=data, headers=ctx.obj['HEADERS'])
-        r = click.echo(url)
-        r = click.echo(data)
-        r = click.echo(ctx.obj['HEADERS'])
+        r = requests.post(url, json=data, headers=ctx.obj['HEADERS'])
+        # r = click.echo(url)
+        # r = click.echo(data)
+        # r = click.echo(ctx.obj['HEADERS'])
+
+
+@cli.command()
+@click.option('--project_id', help="Id for the project to get list of tasks from")
+@click.pass_context
+def get_tasks(ctx, project_id):
+    if project_id:
+        url = API_URL + f'/projects/{project_id}/tasks.json'
+    else:
+        url = API_URL + '/tasks.json'
+
+    r = requests.get(url, headers=ctx.obj['HEADERS'])
+    try:
+        for task in r.json():
+            click.echo(f'id: {task["id"]}, name: {task["name"]}, project_id: {task["project_id"]}')
+    except Exception as e:
+        click.echo(e)
+        click.echo(f'{r.text} {r.status_code}')
 
 
 def daterange(from_date, to_date):
