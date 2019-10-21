@@ -37,9 +37,6 @@ def create_entries(ctx, task_id, from_date, to_date, hours, notes):
             "task_id": task_id,
         }
         r = requests.post(url, json=data, headers=ctx.obj['HEADERS'])
-        # r = click.echo(url)
-        # r = click.echo(data)
-        # r = click.echo(ctx.obj['HEADERS'])
 
 
 @cli.command()
@@ -53,8 +50,31 @@ def get_tasks(ctx, project_id):
 
     r = requests.get(url, headers=ctx.obj['HEADERS'])
     try:
+        r.raise_for_status()
         for task in r.json():
             click.echo(f'id: {task["id"]}, name: {task["name"]}, project_id: {task["project_id"]}')
+    except Exception as e:
+        click.echo(e)
+        click.echo(f'{r.text} {r.status_code}')
+
+@cli.command()
+@click.option('--project_id', help='Specific project to get info on')
+@click.pass_context
+def get_projects(ctx, project_id):
+    if project_id:
+        url = API_URL + f'/projects/{project_id}.json'
+    else:
+        url = API_URL + '/projects.json'
+
+    r = requests.get(url, headers=ctx.obj['HEADERS'])
+    try:
+        r.raise_for_status()
+        if project_id:
+            project = r.json()
+            click.echo(f'id: {project["id"]}, name: {project["name"]}')
+        else:
+            for project in r.json():
+                click.echo(f'id: {project["id"]}, name: {project["name"]}')
     except Exception as e:
         click.echo(e)
         click.echo(f'{r.text} {r.status_code}')
