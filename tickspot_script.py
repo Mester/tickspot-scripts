@@ -1,6 +1,7 @@
-from datetime import timedelta
-import requests
+from datetime import timedelta, date
+
 import click
+import requests
 
 API_URL = 'https://www.tickspot.com/79559/api/v2'
 
@@ -40,6 +41,23 @@ def create_entries(ctx, task_id, from_date, to_date, hours, notes):
 
 
 @cli.command()
+@click.option('--task_id', type=click.INT, required=True, help='Id for the task')
+@click.option('--hours', default=8, help='Amount of hours to fill in')
+@click.option('--notes', default="", help='Optional note to fill in')
+@click.pass_context
+def create_entry_today(ctx, task_id, hours, notes):
+    url = API_URL + "/entries.json"
+
+    data = {
+        "date": date.today().strftime('%Y-%m-%d'),
+        "hours": hours,
+        "notes": notes,
+        "task_id": task_id,
+    }
+    requests.post(url, json=data, headers=ctx.obj['HEADERS'])
+
+
+@cli.command()
 @click.option('--project_id', help="Id for the project to get list of tasks from")
 @click.pass_context
 def get_tasks(ctx, project_id):
@@ -56,6 +74,7 @@ def get_tasks(ctx, project_id):
     except Exception as e:
         click.echo(e)
         click.echo(f'{r.text} {r.status_code}')
+
 
 @cli.command()
 @click.option('--project_id', help='Specific project to get info on')
