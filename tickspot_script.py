@@ -4,20 +4,23 @@ import click
 import requests
 
 API_URL = 'https://www.tickspot.com/79559/api/v2'
-
+HEADERS = 'HEADERS'
+SKIP_WEEKENDS = 'SKIP_WEEKENDS'
 
 @click.group()
 @click.option('--token', 'api_token', required=True, help='Your api token')
 @click.option('--email', required=True, help='Your email')
 @click.option('--user_agent', default='MyCoolApp', help='Optional name for User-Agent')
+@click.option('--skip_weekends', is_flag=True, help='If you want to skip weekends (saturdays and sundays)')
 @click.pass_context
-def cli(ctx, api_token, email, user_agent):
+def cli(ctx, api_token, email, user_agent, skip_weekends):
     headers = {
         'Authorization': f'Token token={api_token}',
         'User-Agent': f'{user_agent} ({email})',
     }
     ctx.ensure_object(dict)
-    ctx.obj['HEADERS'] = headers
+    ctx.obj[HEADERS] = headers
+    ctx.obj[SKIP_WEEKENDS] = skip_weekends
 
 
 @cli.command()
@@ -31,13 +34,14 @@ def create_entries(ctx, task_id, from_date, to_date, hours, notes):
     url = API_URL + "/entries.json"
 
     for single_date in daterange(from_date, to_date):
-        data = {
-            "date": single_date.strftime('%Y-%m-%d'),
-            "hours": hours,
-            "notes": notes,
-            "task_id": task_id,
-        }
-        r = requests.post(url, json=data, headers=ctx.obj['HEADERS'])
+        if not ctx.obj[SKIP_WEEKENDS] or not is_weekend(single_date):
+            data = {
+                "date": single_date.strftime('%Y-%m-%d'),
+                "hours": hours,
+                "notes": notes,
+                "task_id": task_id,
+            }
+            requests.post(url, json=data, headers=ctx.obj[HEADERS])
 
 
 @cli.command()
@@ -47,14 +51,16 @@ def create_entries(ctx, task_id, from_date, to_date, hours, notes):
 @click.pass_context
 def create_entry_today(ctx, task_id, hours, notes):
     url = API_URL + "/entries.json"
+    day = date.today()
 
-    data = {
-        "date": date.today().strftime('%Y-%m-%d'),
-        "hours": hours,
-        "notes": notes,
-        "task_id": task_id,
-    }
-    requests.post(url, json=data, headers=ctx.obj['HEADERS'])
+    if not ctx.obj[SKIP_WEEKENDS] or not is_weekend(day):
+        data = {
+            "date": day.strftime('%Y-%m-%d'),
+            "hours": hours,
+            "notes": notes,
+            "task_id": task_id,
+        }
+        requests.post(url, json=data, headers=ctx.obj[HEADERS])
 
 
 @cli.command()
@@ -66,7 +72,7 @@ def get_tasks(ctx, project_id):
     else:
         url = API_URL + '/tasks.json'
 
-    r = requests.get(url, headers=ctx.obj['HEADERS'])
+    r = requests.get(url, headers=ctx.obj[HEADERS])
     try:
         r.raise_for_status()
         for task in r.json():
@@ -102,6 +108,10 @@ def get_projects(ctx, project_id):
 def daterange(from_date, to_date):
     for n in range(int((to_date - from_date).days + 1)):
         yield from_date + timedelta(n)
+
+
+def is_weekend(day):
+    return day.weekday() >= 5
 
 
 if __name__ == '__main__':
